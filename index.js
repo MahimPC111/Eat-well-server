@@ -17,6 +17,7 @@ async function run() {
         const serviceCollections = client.db('eatWell').collection('services')
         const reviewCollections = client.db('eatWell').collection('reviews')
 
+        // loading all service data
         app.get('/services', async (req, res) => {
             const query = {};
             const cursor = serviceCollections.find(query);
@@ -24,6 +25,14 @@ async function run() {
             res.send(services)
         })
 
+        // adding a new service 
+        app.post('/services', async (req, res) => {
+            const newService = req.body;
+            const services = await serviceCollections.insertOne(newService);
+            res.send(services)
+        })
+
+        // loading a single service data
         app.get('/services/:id', async (req, res) => {
             const id = req.params.id;
             const query = { _id: ObjectId(id) };
@@ -31,6 +40,7 @@ async function run() {
             res.send(serviceDetails)
         })
 
+        // loading only 3 service data for home
         app.get('/servicesForHome', async (req, res) => {
             const query = {};
             const cursor = serviceCollections.find(query);
@@ -38,6 +48,7 @@ async function run() {
             res.send(services)
         })
 
+        // loading review data for each service
         app.get('/reviews', async (req, res) => {
             let query = {};
             if (req.query.service) {
@@ -50,12 +61,13 @@ async function run() {
             res.send(reviews)
         })
 
-        app.post('/reviews'), async (req, res) => {
+        // adding a new review
+        app.post('/reviews', async (req, res) => {
             const review = req.body;
-            console.log(review)
             const reviews = await reviewCollections.insertOne(review)
             res.send(reviews)
-        }
+        })
+
     }
     finally {
 
