@@ -39,11 +39,23 @@ async function run() {
         })
 
         app.get('/reviews', async (req, res) => {
-            const query = {};
+            let query = {};
+            if (req.query.service) {
+                query = {
+                    service: req.query.service
+                }
+            }
             const cursor = reviewCollections.find(query);
             const reviews = await cursor.toArray();
             res.send(reviews)
         })
+
+        app.post('/reviews'), async (req, res) => {
+            const review = req.body;
+            console.log(review)
+            const reviews = await reviewCollections.insertOne(review)
+            res.send(reviews)
+        }
     }
     finally {
 
