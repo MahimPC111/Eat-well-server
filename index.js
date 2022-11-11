@@ -4,28 +4,11 @@ const cors = require('cors');
 const app = express();
 const port = process.env.PORT || 5000;
 require('dotenv').config();
-const jwt = require('jsonwebtoken');
 
 // middleware
 app.use(cors());
 app.use(express.json())
 
-
-// jwtFunction
-const verifyJWT = (req, res, next) => {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) {
-        return res.status(401).send({ message: 'Unauthorized access triggered' });
-    }
-    const token = authHeader.split(' ')[1];
-    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function (err, decoded) {
-        if (err) {
-            return res.status(403).send({ message: 'Unauthorized access triggered' });
-        }
-        req.decoded = decoded;
-        next();
-    })
-}
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.vmux1xo.mongodb.net/?retryWrites=true&w=majority`;
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
@@ -34,13 +17,6 @@ async function run() {
     try {
         const serviceCollections = client.db('eatWell').collection('services')
         const reviewCollections = client.db('eatWell').collection('reviews')
-
-        // jwt token
-        app.post('/jwt', (req, res) => {
-            const user = req.body;
-            const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '2h' })
-            res.send({ token })
-        })
 
         // loading all service data
         app.get('/services', async (req, res) => {
@@ -74,12 +50,8 @@ async function run() {
         })
 
         // loading review data for each service and each user
-        app.get('/reviews', verifyJWT, async (req, res) => {
+        app.get('/reviews', async (req, res) => {
             let query = {};
-            const decoded = req.decoded;
-            if (decoded.email !== req.query.email) {
-                res.status(403).send({ message: 'Unauthorized access' });
-            }
             if (req.query.service) {
                 query = {
                     service: req.query.service
@@ -118,6 +90,7 @@ async function run() {
             res.send(result)
         })
 
+        // updating a review
         app.patch('/reviews/:id', async (req, res) => {
             const id = req.params.id;
             const review = req.body;
