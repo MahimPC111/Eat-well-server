@@ -4,6 +4,7 @@ const cors = require('cors');
 const app = express();
 const port = process.env.PORT || 5000;
 require('dotenv').config();
+const jwt = require('jsonwebtoken');
 
 // middleware
 app.use(cors());
@@ -13,13 +14,35 @@ app.use(express.json())
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.vmux1xo.mongodb.net/?retryWrites=true&w=majority`;
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
 
+function verifyJWT(req, res, next) {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+        res.status(401).send({ message: 'Unauthorized access' })
+    }
+    const token = authHeader.split(' ')[1];
+    jwt.verify(token, process.env.ACCESS_TOKEN, function (err, decoded) {
+        if (err) {
+            res.status(401).send({ message: 'Unauthorized access' });
+        }
+        req.decoded = decoded;
+        next();
+    })
+}
+
 async function run() {
     try {
         const serviceCollections = client.db('eatWell').collection('services')
         const reviewCollections = client.db('eatWell').collection('reviews')
 
+        app.post('/jwt', async (req, res) => {
+            const user = req.body;
+            console.log(user)
+            const token = jwt.sign(user, process.env.ACCESS_TOKEN, { expiresIn: '6h' })
+            res.send({ token })
+        })
+
         // loading all service data
-        app.get('/services', async (req, res) => {
+        app.get('/services', verifyJWT, async (req, res) => {
             const query = {};
             const cursor = serviceCollections.find(query);
             const result = await cursor.toArray();
