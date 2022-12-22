@@ -17,12 +17,13 @@ const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology:
 function verifyJWT(req, res, next) {
     const authHeader = req.headers.authorization;
     if (!authHeader) {
-        res.status(401).send({ message: 'Unauthorized access' })
+        console.log('inside err', err)
+        return res.status(401).send({ message: 'Unauthorized access' })
     }
     const token = authHeader.split(' ')[1];
     jwt.verify(token, process.env.ACCESS_TOKEN, function (err, decoded) {
         if (err) {
-            res.status(401).send({ message: 'Unauthorized access' });
+            return res.status(401).send({ message: 'Unauthorized access' });
         }
         req.decoded = decoded;
         next();
@@ -35,14 +36,13 @@ async function run() {
         const reviewCollections = client.db('eatWell').collection('reviews')
 
         app.post('/jwt', async (req, res) => {
-            const user = req.body;
-            console.log(user)
-            const token = jwt.sign(user, process.env.ACCESS_TOKEN, { expiresIn: '6h' })
+            const userEmail = req.body;
+            const token = jwt.sign(userEmail, process.env.ACCESS_TOKEN, { expiresIn: '1d' })
             res.send({ token })
         })
 
         // loading all service data
-        app.get('/services', verifyJWT, async (req, res) => {
+        app.get('/services', async (req, res) => {
             const query = {};
             const cursor = serviceCollections.find(query);
             const result = await cursor.toArray();
@@ -72,7 +72,7 @@ async function run() {
             res.send(result)
         })
 
-        // loading review data for each service and each user
+        // loading review data for each service
         app.get('/reviews', async (req, res) => {
             let query = {};
             if (req.query.service) {
@@ -80,17 +80,28 @@ async function run() {
                     service: req.query.service
                 }
             }
-            if (req.query.email) {
-                query = {
-                    email: req.query.email
-                }
-            }
             const cursor = reviewCollections.find(query);
             const result = await cursor.toArray();
             res.send(result)
         })
 
-        // getting a single review
+        // loading review data of each user
+        app.get('/myReviews', verifyJWT, async (req, res) => {
+            const decoded = req.decoded;
+            if (decoded.email !== req.query.email) {
+                return res.status(403).send({ message: 'Unauthorized access' });
+            }
+            let query = {};
+            if (req.query.email) {
+                query = {
+                    email: req.query.email
+                }
+            }
+            const result = await reviewCollections.find(query).toArray();
+            res.send(result)
+        })
+
+        // getting all reviews of a single service
         app.get('/reviews/:id', async (req, res) => {
             const id = req.params.id;
             const query = { _id: ObjectId(id) };
@@ -100,8 +111,8 @@ async function run() {
 
         // adding a new review
         app.post('/reviews', async (req, res) => {
-            const review = req.body;
-            const result = await reviewCollections.insertOne(review)
+            const newReview = req.body;
+            const result = await reviewCollections.insertOne(newReview)
             res.send(result)
         })
 
